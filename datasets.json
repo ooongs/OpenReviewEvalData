@@ -1,0 +1,103 @@
+[
+  {
+    "name": "LLMscore-ICLR-OpenReview",
+    "status": "downloaded",
+    "local_path": "corpora/LLMscore-ICLR-OpenReview-main",
+    "source": "https://github.com/wutaghost/LLMscore-ICLR-OpenReview",
+    "paper": "Position: Peer Review Should Be Calibrated via LLM Scoring (ICML 2026 Position Track)",
+    "license": "CC-BY-4.0",
+    "counts": {"papers": 22177, "reviews": 52369, "rationale_items": 435754, "paper_texts": 22675}
+  },
+  {
+    "name": "PeerRead",
+    "status": "downloaded",
+    "local_path": "corpora/PeerRead-master",
+    "source": "https://github.com/allenai/PeerRead",
+    "paper": "A Dataset of Peer Reviews (PeerRead): Collection, Insights and NLP Applications (NAACL 2018)",
+    "license": "Per-subset licenses; inspect each dataset directory",
+    "counts": {"paper_records": 12364, "embedded_reviews": 7584, "parsed_papers": 12364, "pdfs": 586}
+  },
+  {
+    "name": "ReviewCritique",
+    "status": "downloaded",
+    "local_path": "corpora/ReviewCritique-main",
+    "source": "https://github.com/jiangshdd/ReviewCritique",
+    "paper": "LLMs Assist NLP Researchers: Critique Paper (Meta-)Reviewing (EMNLP 2024)",
+    "license": "Research/evaluation only; model training prohibited",
+    "counts": {"human_review_papers": 100, "llm_review_papers": 20}
+  },
+  {
+    "name": "PRRCA",
+    "status": "downloaded",
+    "local_path": "corpora/PRRCA-master",
+    "source": "https://github.com/ntunlplab/PRRCA",
+    "paper": "Incorporating Peer Reviews and Rebuttal Counter-Arguments for Meta-Review Generation",
+    "license": "No repository-level license found; verify before redistribution",
+    "counts": {"submissions": 6138}
+  },
+  {
+    "name": "DISAPERE",
+    "status": "downloaded",
+    "local_path": "corpora/DISAPERE-main/DISAPERE/final_dataset",
+    "source": "https://github.com/nnkennard/DISAPERE",
+    "paper": "DISAPERE: A Dataset for Discourse Structure in Academic Peer Review",
+    "license": "CC-BY-NC-4.0",
+    "counts": {"review_rebuttal_pairs": 506, "review_sentences": 9946, "rebuttal_sentences": 11103}
+  },
+  {
+    "name": "Argument Pair Extraction (RR-submission-v2)",
+    "status": "downloaded",
+    "local_path": "corpora/ArgumentPairExtraction-master",
+    "source": "https://github.com/LiyingCheng95/ArgumentPairExtraction",
+    "paper": "APE: Argument Pair Extraction from Peer Review and Rebuttal via Multi-task Learning (EMNLP 2020)",
+    "license": "No repository-level license found; verify before redistribution",
+    "counts": {"review_rebuttal_passage_pairs": 4760}
+  },
+  {
+    "name": "ASAP-Review / ReviewAdvisor",
+    "status": "code_downloaded_data_access_blocked",
+    "local_path": "corpora/ReviewAdvisor-main",
+    "source": "https://github.com/neulab/ReviewAdvisor",
+    "paper": "Can We Automate Scientific Reviewing?",
+    "license": "Apache-2.0",
+    "note": "Official dataset bundle is hosted on Google Drive, which was unreachable from this host."
+  },
+  {
+    "name": "PeerSum",
+    "status": "code_downloaded_data_access_blocked",
+    "local_path": "corpora/PeerSum-main",
+    "source": "https://github.com/oaimli/PeerSum",
+    "paper": "PeerSum: A Peer Review Dataset for Abstractive Multi-document Summarization (Findings of EMNLP 2023)",
+    "license": "Verify upstream dataset terms",
+    "counts": {"published_samples": 14993},
+    "note": "Official data is hosted on Google Drive and Hugging Face; both endpoints were unreachable from this host."
+  },
+  {
+    "name": "NLPeer v1/v2",
+    "status": "code_downloaded_manual_request_required",
+    "local_path": "corpora/nlpeer-master",
+    "source": "https://github.com/UKPLab/nlpeer",
+    "paper": "NLPeer: A Unified Resource for the Computational Study of Peer Review (EMNLP 2022)",
+    "license": "Per-source licenses and consent terms",
+    "note": "Dataset access must be requested through TU DataLib handles 3618 and 4459."
+  },
+  {
+    "name": "DeepReview-13K",
+    "status": "code_downloaded_data_access_blocked",
+    "local_path": "corpora/Researcher-main",
+    "source": "https://huggingface.co/datasets/WestlakeNLP/DeepReview-13K",
+    "paper": "DeepReview: Improving LLM-based Paper Review with Human-like Deep Thinking Process (ACL 2025)",
+    "license": "CycleResearcher license; verify dataset card",
+    "counts": {"published_train_records": 13378},
+    "note": "Hugging Face was unreachable from this host."
+  },
+  {
+    "name": "AAAR-1.0",
+    "status": "code_downloaded_data_access_blocked",
+    "local_path": "corpora/AAAR-1.0-main",
+    "source": "https://huggingface.co/datasets/Reza8848/AAAR-1.0",
+    "paper": "AAAR-1.0: Assessing AI's Potential to Assist Research",
+    "license": "Verify dataset card",
+    "note": "Hugging Face was unreachable from this host."
+  }
+]

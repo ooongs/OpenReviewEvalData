@@ -1,4 +1,5 @@
 .cache/
+.venv/
+corpora/
 __pycache__/
 .DS_Store
-
