@@ -64,13 +64,13 @@
   },
   {
     "name": "PeerSum",
-    "status": "code_downloaded_data_access_blocked",
-    "local_path": "corpora/PeerSum-main",
+    "status": "downloaded",
+    "local_path": "corpora/PeerSum-hf",
     "source": "https://github.com/oaimli/PeerSum",
     "paper": "PeerSum: A Peer Review Dataset for Abstractive Multi-document Summarization (Findings of EMNLP 2023)",
     "license": "Verify upstream dataset terms",
-    "counts": {"published_samples": 14993},
-    "note": "Official data is hosted on Google Drive and Hugging Face; both endpoints were unreachable from this host."
+    "counts": {"samples": 14993},
+    "note": "Downloaded from the official Hugging Face dataset through hf-mirror.com."
   },
   {
     "name": "NLPeer v1/v2",
@@ -83,21 +83,21 @@
   },
   {
     "name": "DeepReview-13K",
-    "status": "code_downloaded_data_access_blocked",
-    "local_path": "corpora/Researcher-main",
+    "status": "code_downloaded_account_approval_required",
+    "local_path": "corpora/Researcher-main; dataset metadata in corpora/DeepReview-13K-hf",
     "source": "https://huggingface.co/datasets/WestlakeNLP/DeepReview-13K",
     "paper": "DeepReview: Improving LLM-based Paper Review with Human-like Deep Thinking Process (ACL 2025)",
     "license": "CycleResearcher license; verify dataset card",
     "counts": {"published_train_records": 13378},
-    "note": "Hugging Face was unreachable from this host."
+    "note": "The network path works through hf-mirror.com, but the dataset gate requires account approval."
   },
   {
     "name": "AAAR-1.0",
-    "status": "code_downloaded_data_access_blocked",
-    "local_path": "corpora/AAAR-1.0-main",
+    "status": "download_in_progress",
+    "local_path": "corpora/AAAR-1.0-main; dataset in corpora/AAAR-1.0-hf",
     "source": "https://huggingface.co/datasets/Reza8848/AAAR-1.0",
     "paper": "AAAR-1.0: Assessing AI's Potential to Assist Research",
     "license": "Verify dataset card",
-    "note": "Hugging Face was unreachable from this host."
+    "note": "Public dataset download started through hf-mirror.com."
   }
 ]
