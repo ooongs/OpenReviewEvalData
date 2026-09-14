@@ -83,21 +83,22 @@
   },
   {
     "name": "DeepReview-13K",
-    "status": "code_downloaded_account_approval_required",
-    "local_path": "corpora/Researcher-main; dataset metadata in corpora/DeepReview-13K-hf",
+    "status": "downloaded",
+    "local_path": "corpora/DeepReview-13K-hf",
     "source": "https://huggingface.co/datasets/WestlakeNLP/DeepReview-13K",
     "paper": "DeepReview: Improving LLM-based Paper Review with Human-like Deep Thinking Process (ACL 2025)",
-    "license": "CycleResearcher license; verify dataset card",
-    "counts": {"published_train_records": 13378},
-    "note": "The network path works through hf-mirror.com, but the dataset gate requires account approval."
+    "license": "DeepReviewer license; formal-review use prohibited",
+    "counts": {"published_papers": 13378, "train_rows": 40137, "test_2024_rows": 652, "test_2025_rows": 634},
+    "note": "Downloaded from the official gated Hugging Face dataset through hf-mirror.com after account approval. CSV rows represent review trajectories/modes, so their count exceeds the published paper count. Formal-review use is prohibited by the dataset license."
   },
   {
     "name": "AAAR-1.0",
-    "status": "download_in_progress",
-    "local_path": "corpora/AAAR-1.0-main; dataset in corpora/AAAR-1.0-hf",
+    "status": "downloaded",
+    "local_path": "corpora/AAAR-1.0-hf",
     "source": "https://huggingface.co/datasets/Reza8848/AAAR-1.0",
     "paper": "AAAR-1.0: Assessing AI's Potential to Assist Research",
-    "license": "Verify dataset card",
-    "note": "Public dataset download started through hf-mirror.com."
+    "license": "MIT; dataset card prohibits training use",
+    "counts": {"equation_inference_samples": 1049, "experiment_design_papers": 100, "paper_weakness_papers": 993, "repository_files": 16267},
+    "note": "Downloaded from the official Hugging Face dataset through hf-mirror.com. The dataset card says not to use the data for training."
   }
 ]

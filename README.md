@@ -64,10 +64,11 @@ from scores.
 
 `datasets.json` records source URLs, publication names, local paths, counts,
 licenses, and acquisition status. Large data is intentionally Git-ignored and
-currently occupies about 4.2 GB locally.
+is downloaded separately under `corpora/`.
 
-Hugging Face is blocked by the current DNS/proxy path. A local `hf-cn` wrapper
-uses the reachable mirror without changing the normal `hf` command:
+The direct Hugging Face route is blocked by the current DNS/proxy path. A local
+`hf-cn` wrapper uses the reachable mirror without changing the normal `hf`
+command:
 
 ```bash
 hf-cn download oaimli/PeerSum --repo-type dataset --local-dir corpora/PeerSum-hf
