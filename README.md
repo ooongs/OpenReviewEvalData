@@ -60,6 +60,12 @@ The source export does not include final accept/reject decisions. Here,
 confidence, and paper-level score aggregates. Decisions must not be inferred
 from scores.
 
+## Unified benchmark
+
+[`BENCHMARK.md`](BENCHMARK.md) describes the common paper-plus-rubric JSONL,
+parallel vLLM/OpenAI-compatible batch runner, and human-correlation scorer.
+[`METRICS.md`](METRICS.md) records the metric selection and its limitations.
+
 ## Published corpora
 
 `datasets.json` records source URLs, publication names, local paths, counts,

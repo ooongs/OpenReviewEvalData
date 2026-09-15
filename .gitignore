@@ -3,3 +3,5 @@
 corpora/
 __pycache__/
 .DS_Store
+benchmark_data/
+results/
