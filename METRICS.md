@@ -14,9 +14,7 @@ model scores are min-max normalized before any pooled calculation.
    ratings use a small set of repeated values.
 4. **Normalized MAE and RMSE:** correlation can be high despite systematically
    inflated or deflated scores; these report calibration error.
-5. **ROC-AUC:** secondary measure for corpora exposing accept/reject rather than
-   a numeric rating.
-6. **Human split-half correlation:** reports label noise/reliability as a useful
+5. **Human split-half correlation:** reports label noise/reliability as a useful
    ceiling for interpreting model-human correlation.
 
 No arbitrary composite “overall score” is introduced. A composite can hide a
@@ -35,11 +33,9 @@ then use MAE and per-source results as guardrails.
   https://doi.org/10.1037/0033-2909.86.2.420. This first release reports a
   dependency-free split-half diagnostic; confirmatory studies should add a
   pre-specified ICC model.
-- PeerRead defines accept/reject prediction as a scientific-review task:
-  https://aclanthology.org/N18-1149/
 - AAAR-1.0 evaluates paper weakness identification separately from equation and
   experiment tasks: https://arxiv.org/abs/2410.22394
-- DeepReview supplies structured review reasoning, ratings, and decisions but
+- DeepReview supplies structured review reasoning and ratings but
   explicitly restricts formal-review use: https://arxiv.org/abs/2503.08569
 
 ## Known risks
@@ -52,5 +48,5 @@ then use MAE and per-source results as guardrails.
   objective. Report review count, dispersion, and split-half reliability.
 - Published papers may be present in model pretraining data. Results are model
   familiarity plus review ability unless a time-controlled subset is used.
-- PeerSum contains abstracts rather than full papers and is therefore reported
-  as a separate short-context stratum.
+- A 10,000-character minimum removes clearly blank, title-only, and truncated
+  records. This conservative rule can also exclude unusually short full papers.

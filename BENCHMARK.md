@@ -12,20 +12,21 @@ python3 paper_review_bench.py build
 ```
 
 The full output is `benchmark_data/records.jsonl.gz`; `manifest.json` records
-source counts, exclusions, duplicate canonical papers, and leakage controls.
+source counts, exclusions, removed duplicates, and leakage controls.
 Every JSONL record uses the same `paper`, `rubric`, `human_evaluation`, and
 `source` fields. Large generated data and results are Git-ignored.
 
-The scored full-paper track uses LLMscore, AAAR Paper Weakness, and DeepReview.
-PeerRead and ReviewCritique add acceptance-only full-paper records. PeerSum is
-kept as an explicitly tagged `abstract` track. Corpora without paper text or a
-paper-level label remain listed in the manifest rather than being silently
-forced into an invalid task.
+Every record has a numeric human paper score, at least 10,000 characters of
+source-designated full paper text, and a unique canonical OpenReview paper ID.
+The benchmark uses LLMscore, AAAR Paper Weakness, and DeepReview. Abstract-only,
+categorical-label-only, and incomplete-text records are excluded and documented
+in the manifest.
 
-The verified local build contains 53,582 source records and 47,978 canonical
-papers. The default deduplicated full-text numeric track contains 20,675 papers;
-the compressed JSONL is 752 MB. Exact source counts, score ranges, text-length
-quantiles, exclusions, and its SHA-256 are in `benchmark_data/manifest.json`.
+The verified build contains 20,557 unique papers: 10,603 from LLMscore, 86 from
+AAAR, and 9,868 from DeepReview. It removes 5,566 duplicate occurrences and 162
+incomplete-text occurrences from 26,285 candidates. The compressed JSONL is
+497,029,732 bytes. Exact score ranges, text-length quantiles, exclusions, and
+the file's SHA-256 are in `benchmark_data/manifest.json`.
 
 ## Run locally with vLLM
 
@@ -42,8 +43,7 @@ Run a resumable batch. The output is flushed after every completed request:
 ```bash
 python3 paper_review_bench.py run \
   --server http://127.0.0.1:8000/v1 \
-  --model Qwen/Qwen3-32B --workers 8 \
-  --task paper_score --full-text-only
+  --model Qwen/Qwen3-32B --workers 8
 ```
 
 Repeat `--server` to distribute requests across replicas or hosts. Failed
@@ -69,16 +69,16 @@ python3 paper_review_bench.py score
 ```
 
 The scorer reports pooled and per-source Spearman, Pearson, Kendall tau-b,
-normalized MAE/RMSE, acceptance ROC-AUC, and a human split-half reliability
-diagnostic. All human scales are normalized to `[0, 1]` before pooling.
+normalized MAE/RMSE, and a human split-half reliability diagnostic. All human
+scales are normalized to `[0, 1]` before pooling.
 
 ## Leakage and licensing
 
-- Prompts contain only `paper` and `rubric`; human scores, decisions, reviews,
-  and reference reasoning are never sent.
+- Prompts contain only `paper` and `rubric`; human scores, reviews, and reference
+  reasoning are never sent.
 - `LLMscore.expected_score` and `bias` are excluded because they are LLM-derived.
 - LLMscore ICLR 2025 zero-valued `actual_score` sentinels are excluded because
   zero is outside the source's human rating scale.
 - DeepReviewer data may not be used for formal reviews.
-- AAAR and ReviewCritique prohibit training use in their accompanying terms.
+- AAAR prohibits training use in its accompanying terms.
 - Upstream licenses and usage restrictions remain controlling.

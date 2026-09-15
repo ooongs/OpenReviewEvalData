@@ -21,6 +21,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 SCHEMA_VERSION = "1.0"
+# ponytail: conservative length gate; replace with source-specific structural checks if short papers matter.
+MIN_FULL_TEXT_CHARS = 10_000
 CRITERIA = [
     {"name": "soundness", "description": "Technical correctness and validity of the evidence."},
     {"name": "contribution", "description": "Significance and usefulness of the contribution."},
@@ -32,11 +34,11 @@ MODEL_SCALE = {
     "min": 1,
     "max": 10,
     "anchors": {
-        "1": "Fundamentally flawed; reject.",
-        "3": "Major flaws outweigh the contribution; reject.",
-        "5": "Borderline; meaningful contribution but substantial concerns.",
-        "6": "Slightly above the acceptance threshold.",
-        "8": "Strong, technically sound contribution; accept.",
+        "1": "Fundamentally invalid or unsupported.",
+        "3": "Major flaws substantially outweigh the strengths.",
+        "5": "Mixed quality with substantial unresolved concerns.",
+        "6": "Solid work with meaningful limitations.",
+        "8": "Strong and technically sound contribution.",
         "10": "Exceptional contribution with no material weaknesses.",
     },
 }
@@ -67,15 +69,6 @@ def normalize(value, low, high):
     return (value - low) / (high - low) if value is not None and high > low else None
 
 
-def decision_value(value):
-    value = str(value or "").lower()
-    if "reject" in value:
-        return 0
-    if "accept" in value:
-        return 1
-    return None
-
-
 def title_from_tex(text):
     match = re.search(r"\\title\{([^{}]+)\}", text, re.S)
     return re.sub(r"\s+", " ", match.group(1)).strip() if match else ""
@@ -98,15 +91,17 @@ def parsed_paper_text(value):
     return "\n\n".join(parts).strip()
 
 
-def make_record(dataset, source_id, paper_text, title, scores=None, score_scale=None,
-                decision=None, split=None, text_scope="full_text", locator=None,
+def make_record(dataset, source_id, paper_text, title, scores, score_scale,
+                split=None, locator=None,
                 reference_locator=None, license_name=None):
     paper_text = str(paper_text).encode("utf-8", "replace").decode("utf-8")
     title = str(title or "").encode("utf-8", "replace").decode("utf-8")
     if not title.strip():
         title = next((line.strip()[:500] for line in paper_text.splitlines() if line.strip()), "Untitled")
-    scores = [float(x) for x in (scores or [])]
-    low, high = (score_scale or {}).get("min"), (score_scale or {}).get("max")
+    scores = [float(x) for x in scores]
+    if not scores:
+        raise ValueError(f"numeric human scores required: {dataset}:{source_id}")
+    low, high = score_scale["min"], score_scale["max"]
     human_mean = mean(scores)
     canonical_id = f"openreview:{source_id}" if source_id else "sha256:" + hashlib.sha256(
         (title + "\n" + paper_text[:1000]).encode()
@@ -117,7 +112,7 @@ def make_record(dataset, source_id, paper_text, title, scores=None, score_scale=
         "schema_version": SCHEMA_VERSION,
         "id": record_id,
         "canonical_id": canonical_id,
-        "task": "paper_score" if scores else "acceptance",
+        "task": "paper_score",
         "source": {
             "dataset": dataset,
             "split": split,
@@ -126,18 +121,16 @@ def make_record(dataset, source_id, paper_text, title, scores=None, score_scale=
             "reference_reasoning_locator": reference_locator,
             "license": license_name,
         },
-        "paper": {"title": title, "text": paper_text, "text_scope": text_scope},
+        "paper": {"title": title, "text": paper_text},
         "rubric": RUBRIC,
         "human_evaluation": {
             "scores": scores,
             "score_scale": score_scale,
             "mean": human_mean,
-            "median": statistics.median(scores) if scores else None,
-            "std": statistics.pstdev(scores) if len(scores) > 1 else 0.0 if scores else None,
-            "normalized_mean": normalize(human_mean, low, high) if scores else None,
+            "median": statistics.median(scores),
+            "std": statistics.pstdev(scores) if len(scores) > 1 else 0.0,
+            "normalized_mean": normalize(human_mean, low, high),
             "review_count": len(scores),
-            "decision": decision,
-            "accepted": decision_value(decision),
         },
     }
 
@@ -188,7 +181,7 @@ def aaar_records(corpora, limit=0):
             yield make_record(
                 "AAAR-1.0", value.get("ID"), text, value.get("Title", ""), scores,
                 {"min": 1, "max": 10, "observed_values": [1, 3, 5, 6, 8, 10]},
-                decision=value.get("acceptance"), split=value.get("Conferece"),
+                split=value.get("Conferece"),
                 locator=str(path.relative_to(ROOT)), reference_locator=str(path.relative_to(ROOT)),
                 license_name="MIT; dataset card prohibits training",
             )
@@ -216,7 +209,7 @@ def deepreview_records(corpora, limit=0):
                     continue
                 yield make_record(
                     "DeepReview-13K", paper_id, text, title_from_tex(text), scores,
-                    {"min": 1, "max": 10}, decision=row.get("decision"), split=path.stem,
+                    {"min": 1, "max": 10}, split=path.stem,
                     locator=f"{path.relative_to(ROOT)}:csv-row-{line_no}",
                     reference_locator=f"{path.relative_to(ROOT)}:csv-row-{line_no}:outputs",
                     license_name="DeepReviewer license; no formal-review use",
@@ -226,80 +219,10 @@ def deepreview_records(corpora, limit=0):
                     return
 
 
-def peersum_records(corpora, limit=0):
-    path = corpora / "PeerSum-hf" / "peersum_huggingface.jsonl"
-    emitted = 0
-    for line_no, value in rows(path):
-        scores = [float(x) for x in value.get("review_ratings", []) if float(x) > 0]
-        text = value.get("paper_abstract", "").strip()
-        if not text or not scores:
-            continue
-        raw_id = value.get("paper_id", "")
-        source_id = raw_id.split("_", 2)[-1] if raw_id.startswith("iclr_") else raw_id
-        yield make_record(
-            "PeerSum", source_id, text, value.get("paper_title", ""), scores,
-            {"min": 1, "max": 10}, decision=value.get("paper_acceptance"),
-            split=value.get("label"), text_scope="abstract",
-            locator=f"{path.relative_to(ROOT)}:jsonl-line-{line_no}",
-            reference_locator=f"{path.relative_to(ROOT)}:jsonl-line-{line_no}:meta_review",
-            license_name="Apache-2.0",
-        )
-        emitted += 1
-        if limit and emitted >= limit:
-            return
-
-
-def peerread_records(corpora, limit=0):
-    root = corpora / "PeerRead-master" / "data"
-    emitted = 0
-    for path in sorted(root.glob("*/*/reviews/*.json")):
-        parsed = path.parent.parent / "parsed_pdfs" / f"{path.stem}.pdf.json"
-        if not parsed.exists():
-            continue
-        value = json.loads(path.read_text())
-        paper = json.loads(parsed.read_text())
-        text = parsed_paper_text(paper)
-        if not text or value.get("accepted") is None:
-            continue
-        dataset, split = path.parts[-4], path.parts[-3]
-        yield make_record(
-            "PeerRead", f"{dataset}:{value.get('id', path.stem)}", text,
-            value.get("title", ""), decision="Accept" if value["accepted"] else "Reject",
-            split=f"{dataset}/{split}", locator=str(parsed.relative_to(ROOT)),
-            reference_locator=str(path.relative_to(ROOT)), license_name="Per-subset license",
-        )
-        emitted += 1
-        if limit and emitted >= limit:
-            return
-
-
-def reviewcritique_records(corpora, limit=0):
-    root = corpora / "ReviewCritique-main" / "data"
-    emitted = 0
-    for path in (root / "ReviewCritique.jsonl", root / "ReviewCritique_LLM.jsonl"):
-        for line_no, value in rows(path):
-            text = value.get("body_text", "").strip()
-            if not text:
-                continue
-            yield make_record(
-                "ReviewCritique", None, text, value.get("title", ""),
-                decision=value.get("decision"), split=path.stem,
-                locator=f"{path.relative_to(ROOT)}:jsonl-line-{line_no}",
-                reference_locator=f"{path.relative_to(ROOT)}:jsonl-line-{line_no}:reviews",
-                license_name="Research/evaluation only; model training prohibited",
-            )
-            emitted += 1
-            if limit and emitted >= limit:
-                return
-
-
 ADAPTERS = (
     ("LLMscore-ICLR-OpenReview", llmscore_records),
     ("AAAR-1.0", aaar_records),
     ("DeepReview-13K", deepreview_records),
-    ("PeerSum", peersum_records),
-    ("PeerRead", peerread_records),
-    ("ReviewCritique", reviewcritique_records),
 )
 
 
@@ -307,15 +230,21 @@ def build(args):
     corpora, output = Path(args.corpora).resolve(), Path(args.output).resolve()
     output.parent.mkdir(parents=True, exist_ok=True)
     partial = output.with_suffix(output.suffix + ".partial")
-    counts, tasks, scopes, canonical = Counter(), Counter(), Counter(), Counter()
+    counts, candidates, duplicates_removed, incomplete_removed = Counter(), Counter(), Counter(), Counter()
     ids, seen_canonical = set(), set()
-    missing, selected, selected_scored = Counter(), Counter(), Counter()
+    missing = Counter()
     lengths, score_values = defaultdict(list), defaultdict(list)
     with gzip.open(partial, "wt", encoding="utf-8", compresslevel=1) as destination:
         for name, adapter in ADAPTERS:
             for record in adapter(corpora, args.max_per_source):
-                if not record["paper"]["text"]:
+                candidates[name] += 1
+                if len(record["paper"]["text"].strip()) < MIN_FULL_TEXT_CHARS:
+                    incomplete_removed[name] += 1
                     continue
+                if record["canonical_id"] in seen_canonical:
+                    duplicates_removed[name] += 1
+                    continue
+                seen_canonical.add(record["canonical_id"])
                 if record["id"] in ids:
                     raise ValueError(f"duplicate record id: {record['id']}")
                 ids.add(record["id"])
@@ -324,35 +253,36 @@ def build(args):
                                      ("locator", record["source"]["locator"])):
                     if not value:
                         missing[field] += 1
+                if missing:
+                    raise ValueError(f"required benchmark field missing: {record['id']} {dict(missing)}")
                 values = record["human_evaluation"]["scores"]
                 scale = record["human_evaluation"]["score_scale"]
-                if values and (scale is None or min(values) < scale["min"] or max(values) > scale["max"]):
+                if not values or scale is None:
+                    raise ValueError(f"numeric human scores required: {record['id']}")
+                if min(values) < scale["min"] or max(values) > scale["max"]:
                     raise ValueError(f"score outside declared scale: {record['id']}")
                 destination.write(json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n")
                 counts[name] += 1
-                tasks[record["task"]] += 1
-                scopes[record["paper"]["text_scope"]] += 1
-                canonical[record["canonical_id"]] += 1
                 lengths[name].append(len(record["paper"]["text"]))
                 score_values[name].extend(values)
-                if record["canonical_id"] not in seen_canonical:
-                    seen_canonical.add(record["canonical_id"])
-                    selected[name] += 1
-                    if record["task"] == "paper_score" and record["paper"]["text_scope"] == "full_text":
-                        selected_scored[name] += 1
             print(f"{name}: {counts[name]}", flush=True)
     partial.replace(output)
     manifest = {
         "schema_version": SCHEMA_VERSION,
         "records": sum(counts.values()),
         "records_by_source": dict(counts),
-        "records_by_task": dict(tasks),
-        "records_by_text_scope": dict(scopes),
-        "unique_canonical_papers": len(canonical),
-        "cross_source_duplicate_records": sum(n - 1 for n in canonical.values() if n > 1),
+        "candidate_records_by_source": dict(candidates),
+        "incomplete_text_records_removed_by_source": dict(incomplete_removed),
+        "duplicates_removed_by_source": dict(duplicates_removed),
+        "unique_canonical_papers": len(seen_canonical),
+        "duplicate_canonical_papers": 0,
+        "cross_source_duplicates_removed": sum(duplicates_removed.values()),
         "output": str(output),
         "sha256": file_hash(output),
         "excluded_sources": {
+            "PeerSum": "numeric ratings are present, but only the abstract is provided",
+            "PeerRead": "full paper text is present, but no numeric human paper score is provided",
+            "ReviewCritique": "full paper text is present, but no numeric human paper score is provided",
             "PRRCA": "reviews/rebuttals and scores are present, but full paper text is absent",
             "DISAPERE": "review/rebuttal discourse labels are present, but full paper text is absent",
             "ArgumentPairExtraction": "review/rebuttal passages are present, but full paper text and paper score are absent",
@@ -366,13 +296,13 @@ def build(args):
             "LLMscore ICLR 2025 actual_score is uniformly 0, outside the valid scale, and is excluded as a missing-value sentinel.",
             "AAAR overall rating is review_scores column 2; columns 1 and 3 are soundness and confidence.",
             "Correlations use one paper-level mean human score, not one row per reviewer.",
-            "Abstract-only PeerSum records are tagged and reported separately from full-text records.",
+            f"Every output record has source-designated paper text of at least {MIN_FULL_TEXT_CHARS} characters and at least one numeric human score.",
+            "Canonical OpenReview paper IDs are unique; later duplicate occurrences are removed.",
         ],
         "quality_profile": {
             "duplicate_record_ids": 0,
+            "duplicate_canonical_ids": 0,
             "missing_required_fields": dict(missing),
-            "default_deduplicated_contribution": dict(selected),
-            "default_full_text_paper_score_contribution": dict(selected_scored),
             "text_chars_p10_p50_p90": {name: percentiles(values) for name, values in lengths.items()},
             "human_score_range": {
                 name: [min(values), max(values)] if values else None for name, values in score_values.items()
@@ -413,8 +343,7 @@ def prompt_for(record, max_input_chars=0):
     return (
         "Review the paper using the rubric. Return one JSON object only with keys: "
         "reasoning (object containing summary, strengths array, weaknesses array, and criterion_assessments array), "
-        "paper_score (number from 1 to 10), confidence (integer 1 to 5), and recommendation "
-        "(accept, borderline, or reject). Do not mention or guess any hidden human rating.\n\n"
+        "and paper_score (number from 1 to 10). Do not mention or guess any hidden human rating.\n\n"
         f"RUBRIC:\n{json.dumps(record['rubric'], ensure_ascii=False)}\n\n"
         f"PAPER TITLE:\n{record['paper']['title']}\n\nPAPER:\n{text}"
     )
@@ -474,21 +403,13 @@ def request_one(record, index, args):
     return {"id": record["id"], "canonical_id": record["canonical_id"], "error": errors}
 
 
-def selected_records(args, completed, completed_canonical):
-    seen_canonical = set(completed_canonical)
+def selected_records(args, completed):
     selected = 0
     for _, record in rows(Path(args.input)):
         if record["id"] in completed:
             continue
         if args.source and record["source"]["dataset"] not in args.source:
             continue
-        if args.task and record["task"] not in args.task:
-            continue
-        if args.full_text_only and record["paper"]["text_scope"] != "full_text":
-            continue
-        if not args.allow_duplicates and record["canonical_id"] in seen_canonical:
-            continue
-        seen_canonical.add(record["canonical_id"])
         yield record
         selected += 1
         if args.limit and selected >= args.limit:
@@ -498,12 +419,11 @@ def selected_records(args, completed, completed_canonical):
 def run(args):
     output = Path(args.output)
     output.parent.mkdir(parents=True, exist_ok=True)
-    completed, completed_canonical = set(), set()
+    completed = set()
     if output.exists():
         for _, value in rows(output):
             completed.add(value.get("id"))
-            completed_canonical.add(value.get("canonical_id"))
-    records_to_run = iter(selected_records(args, completed, completed_canonical))
+    records_to_run = iter(selected_records(args, completed))
     print(f"resumed={len(completed)} servers={len(args.server)} workers={args.workers}")
     with output.open("a", encoding="utf-8") as destination, ThreadPoolExecutor(max_workers=args.workers) as pool:
         futures, submitted, done = {}, 0, 0
@@ -600,16 +520,6 @@ def kendall_tau_b(xs, ys):
     return (concordant - discordant) / denom if denom else None
 
 
-def auc(labels, scores):
-    positives = sum(labels)
-    negatives = len(labels) - positives
-    if not positives or not negatives:
-        return None
-    score_ranks = ranks(scores)
-    rank_sum = sum(rank for rank, label in zip(score_ranks, labels) if label)
-    return (rank_sum - positives * (positives + 1) / 2) / (positives * negatives)
-
-
 def fisher_ci(r, n):
     if r is None or n <= 3 or abs(r) >= 1:
         return None
@@ -639,7 +549,7 @@ def score(args):
         }
         for _, record in rows(Path(args.input))
     }
-    numeric, binary = defaultdict(list), defaultdict(list)
+    numeric = defaultdict(list)
     reviewer_halves = defaultdict(lambda: [[], []])
     errors = total = 0
     for _, result in rows(Path(args.results)):
@@ -660,20 +570,12 @@ def score(args):
                 low, high = human["score_scale"]["min"], human["score_scale"]["max"]
                 reviewer_halves[source][0].append(normalize(mean(values[::2]), low, high))
                 reviewer_halves[source][1].append(normalize(mean(values[1::2]), low, high))
-        if human.get("accepted") is not None:
-            pair = (int(human["accepted"]), predicted)
-            binary[source].append(pair)
-            binary["__pooled__"].append(pair)
     metrics = {
         "primary_metric": "spearman_rho on paper-level mean human score",
         "co_primary_metric": "pearson_r on normalized paper-level mean human score",
         "completed_results": total - errors,
         "failed_or_unmatched_results": errors,
         "numeric": {name: metric_block(pairs) for name, pairs in numeric.items()},
-        "acceptance": {
-            name: {"n": len(pairs), "roc_auc": auc([x[0] for x in pairs], [x[1] for x in pairs])}
-            for name, pairs in binary.items()
-        },
         "human_split_half_reliability": {
             name: {
                 "n": len(groups[0]), "pearson_r": pearson(*groups), "spearman_rho": spearman(*groups),
@@ -697,11 +599,12 @@ def self_test():
     assert spearman([10, 20, 20, 30], [1, 2, 2, 3]) == 1.0
     assert kendall_tau_b([1, 2, 3], [1, 2, 3]) == 1.0
     assert kendall_tau_b([1, 2, 3], [3, 2, 1]) == -1.0
-    assert auc([0, 1, 0, 1], [0.1, 0.9, 0.2, 0.8]) == 1.0
     parsed = parse_model_json('{"reasoning":{"summary":"ok"},"paper_score":7}')
     assert parsed["paper_score"] == 7.0
     record = make_record("test", "x", "bad \ud835", "", [5], {"min": 1, "max": 10})
     assert record["paper"]["text"].encode("utf-8") and record["paper"]["title"]
+    assert not ({"decision", "accepted"} & record["human_evaluation"].keys())
+    assert "recommendation" not in prompt_for(record)
     assert parsed_paper_text({"metadata": {"title": "Only title", "sections": None}}) == "Only title"
     print("self-test passed")
 
@@ -728,9 +631,6 @@ def parser():
     p.add_argument("--max-input-chars", type=int, default=0, help="0 preserves the full paper")
     p.add_argument("--limit", type=int, default=0)
     p.add_argument("--source", action="append")
-    p.add_argument("--task", action="append")
-    p.add_argument("--full-text-only", action="store_true")
-    p.add_argument("--allow-duplicates", action="store_true")
     p.set_defaults(func=run)
     p = commands.add_parser("score")
     p.add_argument("--input", default=ROOT / "benchmark_data" / "records.jsonl.gz")

@@ -55,10 +55,8 @@ data/iclr_2024_sample/
   texts/{paper_id}.txt
 ```
 
-The source export does not include final accept/reject decisions. Here,
-"evaluation results" means public reviewer scores, criterion scores,
-confidence, and paper-level score aggregates. Decisions must not be inferred
-from scores.
+Here, "evaluation results" means public numeric reviewer scores, criterion
+scores, confidence, and paper-level score aggregates.
 
 ## Unified benchmark
 
